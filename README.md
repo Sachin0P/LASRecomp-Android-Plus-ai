@@ -1,5 +1,23 @@
 # LAS Recomp for Android
 
+> [!NOTE]
+> **This is a fork of [Nycolazs/LASRecomp-Android-Plus](https://github.com/Nycolazs/LASRecomp-Android-Plus), edited
+> with Anthropic's Claude (Claude Code) to fix a crash on my phone.** The game crashed every time a few seconds after
+> it opened: the phone's own Qualcomm GPU driver crashed while compiling one of the game's shaders (in its shader
+> compiler, `libllvm-qgl.so`, under `vkCreateGraphicsPipelines`). This fork makes the app use the Mesa Turnip driver
+> it already carries on Snapdragon 8 Gen 3 phones, which runs the game without the crash.
+>
+> | Phone | |
+> |---|---|
+> | Model | **OnePlus 12** (CPH2573, India) |
+> | SoC | Qualcomm Snapdragon 8 Gen 3 (SM8650) |
+> | GPU | Adreno 750 - system Vulkan driver 1.3.128 (Qualcomm 512.762.41) |
+> | RAM | 16 GB |
+> | OS | Android 16 (OxygenOS 16, build CPH2573_16.0.10.501) |
+>
+> Already have the app installed from the original project? Settings > Video > GPU driver > **Install driver...**
+> with a Turnip `.zip` does the same by hand.
+
 **A native Android port of [LAS Recomp](https://github.com/peiikai/LASRecomp)**: *The Legend of Zelda: Link's
 Awakening* (Nintendo Switch, 2019), statically recompiled to native ARM64 code and running on your phone at up to 60
 frames per second - **not emulation**. This repository is a fork of peiikai's project, focused on mobile: touch
@@ -71,6 +89,9 @@ blur removal, cheats, the warp menu, the save editor and more.
 
 - An **arm64 Android phone, Android 11 or newer**. Adreno (Snapdragon) GPUs are what it's built and tested for; the
   bundled Turnip driver supports Adreno 6xx / 7xx. Other GPUs may work through the phone's own Vulkan driver.
+  The bundled Turnip runs by itself where the phone's own driver can't run the game: drivers older than Vulkan 1.3,
+  and Snapdragon 8 Gen 3 (Adreno 750), whose Qualcomm driver crashes compiling a shader. If Turnip doesn't start
+  there, the next start falls back to the phone's driver.
 - About **12 GB free** during the setup (the game files, the build); about 7 GB stays afterwards.
 - Your own *Link's Awakening* **v1.0.0**: `.xci` / `.nsp` + `prod.keys`, or the extracted `exefs` and `romfs`.
 
@@ -104,8 +125,11 @@ code on a computer instead (a personal APK): `tools/android/build_game.sh <game 
 
 ## Known issues
 
-- Tested on one phone (Snapdragon 865). Reports from other devices are welcome: open an issue with the phone model,
-  the GPU driver and `lasrecomp.log` from the app's data folder.
+- Tested on a Galaxy S20 FE (Snapdragon 865) and a OnePlus 12 (Snapdragon 8 Gen 3, with Turnip). Reports from other
+  devices are welcome: open an issue with the phone model, the GPU driver and `lasrecomp.log` from the app's data
+  folder.
+- "Your graphics driver crashed" right after the start, or on walking into the overworld, on a Snapdragon phone: the
+  phone's own driver's shader compiler. Install a Turnip driver under Settings > Video > GPU driver.
 - The first setup needs the app's data folder on internal storage, and the phone gets warm during the build.
 - Changing the internal resolution while playing is best done on the title screen.
 

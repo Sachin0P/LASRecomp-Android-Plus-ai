@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.util.Log;
 
 import org.json.JSONObject;
@@ -115,13 +116,16 @@ final class GpuDrivers {
     // or hung at its last start: the system driver then runs, and failed() names it once.
     static String config(Context c) {
         if (!supported()) return "";
-        Driver d = selected(c) ? find(c) : auto(c) ? bundled(c) : null;
+        boolean sel = selected(c);
+        Driver d = sel ? find(c) : auto(c) ? bundled(c) : null;
         if (d == null) return "";
         File probe = new File(d.dir, ".probe");
-        if (probe.exists() && selected(c)) {  // (the bundled one stays: the system's can't run the game at all)
+        // (the bundled one stays where the system's can't run the game at all: older than Vulkan 1.3)
+        if (probe.exists() && (sel || vulkan13(c))) {
             //noinspection ResultOfMethodCallIgnored
             probe.delete();
-            select(c, false);
+            if (sel) select(c, false);
+            else prefs(c).edit().putBoolean("bundled_failed", true).commit();  // (systemDriverBroken: not again)
             prefs(c).edit().putString("failed", d.name).commit();
             return "";
         }
@@ -137,12 +141,26 @@ final class GpuDrivers {
                + probe.getAbsolutePath();
     }
 
-    // No custom driver selected, and the system's driver is older than Vulkan 1.3, which the renderer needs (Adreno 6xx
-    // phones that stopped getting updates, e.g. the Galaxy S20 FE's 1.1): the Turnip build the APK carries runs
+    // No custom driver selected, and the system's driver can't run the game: older than Vulkan 1.3, which the renderer
+    // needs (Adreno 6xx phones that stopped getting updates, e.g. the Galaxy S20 FE's 1.1), or one whose shader
+    // compiler crashes on the game's shaders (systemDriverBroken): the Turnip build the APK carries runs
     static boolean auto(Context c) {
         // (also after a custom driver was switched off: the system's can't run the game without Vulkan 1.3 - it
         // crashed at start)
-        return !c.getPackageManager().hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_VERSION, 0x403000);
+        if (!vulkan13(c)) return true;
+        return systemDriverBroken() && !prefs(c).getBoolean("bundled_failed", false);
+    }
+
+    private static boolean vulkan13(Context c) {
+        return c.getPackageManager().hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_VERSION, 0x403000);
+    }
+
+    // Snapdragon 8 Gen 3 (SM8650, Adreno 750): the Qualcomm driver's shader compiler (libllvm-qgl.so, under
+    // vkCreateGraphicsPipelines) crashed on an overworld pipeline - every start once the pipelines seen before were
+    // built at start (OnePlus 12, Android 16, driver 512.762.41). Turnip ran it. A Turnip that doesn't start here
+    // is caught by the probe (config): the system driver runs from then on.
+    private static boolean systemDriverBroken() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && Build.SOC_MODEL.startsWith("SM8650");
     }
 
     // The driver in the APK's assets (turnip/: meta.json and its library, tools/android/build_deps.sh), copied out once

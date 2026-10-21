@@ -8,7 +8,8 @@
 // Only what the game uses right now is on screen (Link's Awakening: A confirm / lift, B sword, X / Y items, R shield,
 // L Pegasus Boots, Minus map, Plus items; ZL / ZR unused):
 //   play        the stick, A, Plus / Minus, and B / R / L once Link has the sword / shield / boots, X / Y while an item
-//               is on them (their icons: the live save's items word and X / Y slots)
+//               is on them (their icons: the live save's items word and X / Y slots); X always in the Trendy Game
+//               (the crane moves forward on it)
 //   title       (not in play: the opening, the title, the file select) a tap anywhere: skips the opening, presses L + R
 //               on the title, on the file select picks the file tapped (four presses up - its cursor stops at the top -
 //               then down to it) and confirms, then confirms its "load this file?"; the stick, A and B are there too
@@ -42,6 +43,7 @@ int inventory_items_cursor(void);    // runtime/ui/inventory_overlay.mm
 bool tracker_map_page_shown(void);   // runtime/ui/tracker_overlay.mm
 bool chaos_dgnmap_shown(void);       // runtime/ui/chaos_overlay.mm
 bool movie_opening_playing(void);    // runtime/hle/movie.c
+const char *game_level_name(void);   // runtime/hle/widescreen.c
 }
 ImTextureID ui_game_icon(const char *name);  // runtime/ui/triforce_icons.mm
 
@@ -489,7 +491,10 @@ static uint32_t wanted(int ctx) {
         if (!(g_items_word & 1)) m &= ~M(C_B);           // the sword
         if (!(g_items_word & 2)) m &= ~M(C_R);           // the shield
         if (!(g_items_word >> 11 & 1)) m &= ~M(C_L);     // the Pegasus Boots
-        if (g_slot_x <= 1 || g_slot_x > 15) m &= ~M(C_X);
+        // (the Trendy Game's crane moves forward on X, whatever is on it: with an empty X slot there was no X to press)
+        const char *lv = game_level_name();
+        bool crane = lv && !strcmp(lv, "CraneGame");
+        if ((g_slot_x <= 1 || g_slot_x > 15) && !crane) m &= ~M(C_X);
         if (g_slot_y <= 1 || g_slot_y > 15) m &= ~M(C_Y);
         for (int i = 0; i < C_COUNT; i++)  // (ZL / ZR and the like: only where the player put them)
             if ((i == C_ZL || i == C_ZR) && g_settings.touch_moved[i] && !g_settings.touch_hidden[i]) m |= M(i);

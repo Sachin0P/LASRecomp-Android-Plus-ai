@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 
 #include "shaders.h"
+#include "../screen_filter.h"
 
 void vk_shaders_init(void) {  // (compilers are per thread: check shaderc works at all)
     shaderc_compiler_t c = shaderc_compiler_initialize();
@@ -248,9 +249,11 @@ static const char *builtin_src(const char *name, int *stage) {
     if (!strcmp(name, "present.vert")) {
         *stage = STAGE_VERTEX;
         // pv[0].x: flip (lower-left origin), pv[1]: uv crop (origin, size). Fullscreen triangle; Vulkan NDC y points down.
+        // pv[0].z: 0 the picture as it is; > 0 the bars' backdrop (device.c bars_backdrop) - blurred, that much light.
         return "#version 450\n"
                "layout(push_constant) uniform P { vec4 a; vec4 crop; } pc;\n"
                "layout(location = 0) out vec2 uv;\n"
+               "layout(location = 1) out vec2 fx;\n"
                "void main() {\n"
                "  vec2 p = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);\n"
                "  vec2 c = p * 2.0 - 1.0;\n"
@@ -259,15 +262,31 @@ static const char *builtin_src(const char *name, int *stage) {
                "  gl_Position = vec4(c, 0.0, 1.0);\n"
                "  vec2 u = vec2(p.x, pc.a.x > 0.5 ? 1.0 - p.y : p.y);\n"
                "  uv = pc.crop.xy + u * pc.crop.zw;\n"
+               "  fx = vec2(pc.a.z, length(pc.crop.zw));\n"
                "}\n";
     }
     if (!strcmp(name, "present.frag")) {
         *stage = STAGE_FRAGMENT;
         return "#version 450\n"
                "layout(set = 0, binding = 0) uniform sampler2D t;\n"
+               "layout(push_constant) uniform F { layout(offset = 32) vec4 pf; };\n"  // (the screen filter)
                "layout(location = 0) in vec2 uv;\n"
+               "layout(location = 1) in vec2 fx;\n"
                "layout(location = 0) out vec4 o;\n"
-               "void main() { o = vec4(texture(t, uv).rgb, 1.0); }\n";
+               "void main() {\n"
+               "  vec3 c;\n"
+               "  if (fx.x <= 0.0) c = texture(t, uv).rgb;\n"
+               "  else {\n"
+               // (a 7x7 box of taps spread wide over the sampled strip: soft, no detail - a narrower spread left streaks)
+               "    c = vec3(0.0);\n"
+               "    float r = 0.16 * fx.y;\n"
+               "    for (int j = -3; j <= 3; j++)\n"
+               "      for (int i = -3; i <= 3; i++) c += textureLod(t, uv + vec2(i, j) * (r / 3.0), 0.0).rgb;\n"
+               "    c = c / 49.0 * fx.x;\n"
+               "  }\n"
+               SCREEN_FILTER_SRC("vec3")
+               "  o = vec4(c, 1.0);\n"
+               "}\n";
     }
     // ---- decoded video, NV12 -> RGBA (exec.c vk_convert_nv12): limited range BT.601, as swscale did (the movies
     // declare no matrix). Fullscreen triangle; Vulkan NDC y points down, so uv = p.

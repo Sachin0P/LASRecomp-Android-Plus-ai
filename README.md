@@ -53,9 +53,12 @@ Faster phones (Snapdragon 8 Gen 1 and newer) should have room for higher resolut
 ## Features
 
 **Made for the phone**
-- **Set up from your game package**: pick a folder with your `.xci` or `.nsp` and your `prod.keys` (or choose the keys
-  file when asked); the app decrypts and extracts the game on the phone. A package with the update inside works the
-  same - the base v1.0.0 is used. Extracted `exefs` / `romfs` folders work too.
+- **Set up from your game package**: choose your `.xci` or `.nsp`, then your `prod.keys`; the app decrypts and
+  extracts the game on the phone. A package with the update inside works the same - the base v1.0.0 is used. A folder
+  with the extracted `exefs` / `romfs` works too. The game files can go on a **memory card** (Settings > Prelaunch >
+  Storage).
+- **Saves to and from Switch emulators**: import your progress from yuzu / Eden / Citron / Sudachi / Ryujinx, or
+  export it to them (Settings > Prelaunch > Saves; the saves already there are backed up first).
 - **The game code is built on the phone** (a bundled Python + Clang toolchain): no computer needed, ~11 minutes once.
   Functions the game never runs are compiled without optimization - the result plays the same, built in less than
   half the time.
@@ -63,12 +66,19 @@ Faster phones (Snapdragon 8 Gen 1 and newer) should have room for higher resolut
   the sword, R with the shield, L with the Pegasus Boots, X / Y with the items you equip, each showing the game's own
   item icon. On the title screen a tap starts the game, on the file select a tap on a file loads it, on the Items page
   a tap on an item selects it.
-- **Your layout**: drag any button, resize or hide it (Settings > Controls > Edit touch layout).
+- **Your layout**: drag any button, resize or hide it (Settings > Controls > Edit touch layout). The stick can follow
+  your thumb or stay fixed in its place (Settings > Controls > Stick).
 - **Controllers**: Bluetooth / USB controllers are supported through SDL3 and play as on the Switch (not yet tested
-  on the phone above - reports welcome); the touch controls hide while one is in use and come back with a touch. **Select + Start** (Minus + Plus) opens the settings menu; so do the Android back button
+  on the phone above - reports welcome); the touch controls hide while one is in use and come back with a touch. Face buttons go by their letters (A = the
+  bottom button) by default, or by position as on a Switch (Settings > Controls > Face buttons); the in-game button
+  icons follow. **Select + Start** (Minus + Plus) opens the settings menu; so do the Android back button
   and the menu button on screen.
 - **60 fps frame generation**: an in-between frame reprojected from the game's depth and camera, Link held in place,
-  the HUD kept still.
+  the HUD kept still. Or the game's **native 60 fps** mode on phones fast enough for it (Settings > Video > Frame
+  rate).
+- **Any GPU driver**: install a Vulkan driver package (`.zip`, as emulators use) on any phone - Mesa Turnip for
+  Adreno, Mesa PanVK for Mali... (Settings > Video > GPU driver). If the phone's own driver can't start the game, the
+  app offers to install one right away.
 - Snapdragon Game Super Resolution upscaler, dynamic resolution, pre-rotated swapchain, power modes (Balanced / GPU
   performance / maximum performance on rooted phones), custom Turnip driver loading (adrenotools).
 - **Brazilian Portuguese**: the app's menus, and the game itself through the fan translation by **Projeto Zelda Brasil
@@ -84,7 +94,8 @@ blur removal, cheats, the warp menu, the save editor and more.
 ## Requirements
 
 - An **arm64 Android phone, Android 11 or newer**. Adreno (Snapdragon) GPUs are what it's built and tested for; the
-  bundled Turnip driver supports Adreno 6xx / 7xx. Other GPUs may work through the phone's own Vulkan driver.
+  bundled Turnip driver supports Adreno 6xx / 7xx. Mali, Xclipse and other GPUs run through the phone's own Vulkan
+  driver (1.3, or 1.1 with the needed extensions) or one you install (e.g. Mesa PanVK on Mali).
   The bundled Turnip runs by itself where the phone's own driver can't run the game: drivers older than Vulkan 1.3,
   and Snapdragon 8 Gen 3 (Adreno 750), whose Qualcomm driver crashes compiling a shader. If Turnip doesn't start
   there, the next start falls back to the phone's driver.
@@ -95,11 +106,11 @@ blur removal, cheats, the warp menu, the save editor and more.
 
 1. Build the APK (see [Building from source](#building-from-source)) and install it (allow installing from your file
    manager when Android asks). This fork doesn't publish APKs.
-2. Copy your game package (`.xci` or `.nsp`) and your `prod.keys` into one folder on the phone, for example
-   `Download/LAS`.
-3. Open the app: **Game files folder** -> pick that folder -> **Set up game files**. Keep the app open for the first
-   seconds (the extraction), then the build continues in the background with a notification (about 11 minutes on a
-   Snapdragon 865). The game starts by itself when it's done.
+2. Copy your game package (`.xci` or `.nsp`, not a compressed `.nsz` / `.xcz`) and your `prod.keys` to the phone,
+   for example into `Download/LAS`.
+3. Open the app: **Game file (.xci / .nsp)** -> choose your game, then your **prod.keys** when asked -> **Set up game
+   files**. Keep the app open for the first seconds (the extraction), then the build continues in the background with
+   a notification (about 11 minutes on a Snapdragon 865). The game starts by itself when it's done.
 4. Play with the touch controls or a controller. The button at the top centre (or Select + Start, or Android's back
    button) opens the settings.
 
@@ -157,7 +168,8 @@ code on a computer instead (a personal APK): `tools/android/build_game.sh <game 
   parsing and Traditional Chinese locale detection (#53); Windows game thread stacks reserved instead of committed,
   about 9 GB less memory committed (#107); the Vulkan fence fix for reused submission slots (#108); x86 rounding
   without x87 state changes (#115); movie memory freed on close, source change and reboot (#112); Vulkan stopping
-  cleanly on GPU timeouts (#127); a strict Vulkan validation mode for automated tests (#128); Windows session logs: `lasrecomp.log` always the latest run, with five backups (#114); resumable game-code builds: a cancelled or interrupted setup picks up where it stopped (#56); randomizer check flags kept with committed saves (#170); save write fixes that keep a failed save from losing data (#169, merged in #182)
+  cleanly on GPU timeouts (#127); a strict Vulkan validation mode for automated tests (#128); Windows session logs:
+  `lasrecomp.log` always the latest run, with five backups (#114); resumable game-code builds: a cancelled or interrupted setup picks up where it stopped (#56); randomizer check flags kept with committed saves (#170); save write fixes that keep a failed save from losing data (#169, merged in #182)
 - **[@gitarre1234rr5](https://github.com/gitarre1234rr5)** - controller rumble: the game's vibration on your controller
   (#104), and a regression test for the kernel's timed condition-variable wait (#88)
 - **[@rkammoun](https://github.com/rkammoun)** - diagnosed and patched the Metal 16-sampler limit behind the black walls in the Ukuku Prairie cave (#215, fixed in #216)

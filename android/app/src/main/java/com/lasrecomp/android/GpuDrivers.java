@@ -33,8 +33,12 @@ final class GpuDrivers {
         File dir;
     }
 
-    // Custom drivers only work on Adreno GPUs (the kernel's kgsl device)
-    static boolean supported() { return new File("/dev/kgsl-3d0").exists(); }
+    // An installed driver loads through libadrenotools on any GPU: Mesa Turnip on Adreno, Mesa PanVK on Mali, a vendor
+    // build on Xclipse... (one that doesn't start is replaced by the system's at the next start: config's probe)
+    static boolean supported() { return true; }
+
+    // An Adreno GPU (the kernel's kgsl device): the Turnip build the APK carries can run
+    static boolean adreno() { return new File("/dev/kgsl-3d0").exists(); }
 
     static File root(Context c) { return new File(c.getFilesDir(), "gpu_driver"); }
 
@@ -147,8 +151,8 @@ final class GpuDrivers {
     static boolean auto(Context c) {
         // (also after a custom driver was switched off: the system's can't run the game without Vulkan 1.3 - it
         // crashed at start)
-        if (!vulkan13(c)) return true;
-        return systemDriverBroken() && !prefs(c).getBoolean("bundled_failed", false);
+        if (!vulkan13(c)) return adreno();
+        return adreno() && systemDriverBroken() && !prefs(c).getBoolean("bundled_failed", false);
     }
 
     private static boolean vulkan13(Context c) {

@@ -146,13 +146,17 @@ extern "C" bool touch_visible(void) {
     if (g_settings.touch_mode == 2) return false;
     if (g_settings.touch_mode == 1) return true;
     // Auto: on a touch screen, while no controller is in use - a touch after its last button or stick brings them back
-    static int touchscreen = -1;
-    if (touchscreen < 0) {
+    // (Android: a phone has one, and SDL may list it only from its first touch on - a "no" kept from the start hid
+    // the controls for good on such phones; elsewhere asked again until there is one)
+#ifndef __ANDROID__
+    static bool touchscreen;
+    if (!touchscreen) {
         int n = 0;
         SDL_free(SDL_GetTouchDevices(&n));
         touchscreen = n > 0;
     }
     if (!touchscreen) return false;
+#endif
     return !input_gamepad_connected() || g_last_touch > g_last_pad;
 }
 
@@ -172,6 +176,8 @@ static bool inside(const Control &c, float x, float y, float slack) {
 static int hit(float x, float y) {
     for (int i = C_A; i < C_COUNT; i++)
         if (shown(i) && inside(g_ctl[i], x, y, 1.3f)) return i;
+    if (shown(C_STICK) && g_settings.touch_stick_fixed)  // (fixed: its own circle, a little beyond its rim)
+        return inside(g_ctl[C_STICK], x, y, 1.6f) ? C_STICK : -1;
     if (shown(C_STICK) && x < g_w * 0.42f && y > g_h * 0.30f) return C_STICK;
     return -1;
 }
@@ -426,9 +432,10 @@ static bool handle(const SDL_Event *e, bool *toggle_menu) {
             if (c == C_B && g_title_step > 0) g_title_step--;
             if (c == C_START && g_title_step < 2) g_title_step++;
         }
-        if (c == C_STICK) {  // the base comes to the thumb (kept on screen)
+        if (c == C_STICK) {  // the base comes to the thumb (kept on screen) - or stays where it is (Fixed)
             float r = g_ctl[C_STICK].r;
-            g_stick_cx = clampf(x, r, g_w * 0.42f), g_stick_cy = clampf(y, g_h * 0.30f + r * 0.5f, g_h - r);
+            if (!g_settings.touch_stick_fixed)
+                g_stick_cx = clampf(x, r, g_w * 0.42f), g_stick_cy = clampf(y, g_h * 0.30f + r * 0.5f, g_h - r);
             stick_to(x, y);
         } else if (c == C_MENU) {
             g_menu_down = true;
@@ -485,6 +492,11 @@ static uint32_t g_items_word;
 static int g_slot_x, g_slot_y;  // (0 / 1, the sword's and shield's slots, never sit on X / Y: an empty one reads 0)
 static uint32_t wanted(int ctx) {
     uint32_t m = kShown[ctx];
+    if (ctx == X_PLAY && g_settings.touch_all) {  // (every button, whatever Link has)
+        for (int i = 0; i < C_COUNT; i++)
+            if ((i == C_ZL || i == C_ZR) && g_settings.touch_moved[i] && !g_settings.touch_hidden[i]) m |= M(i);
+        return m;
+    }
     if (ctx == X_PLAY) {
         g_items_word = LD32(GUEST(GA_LIVE_SAVE) + 0x5568);
         g_slot_y = LD8(GUEST(GA_LIVE_SAVE) + 0x5562), g_slot_x = LD8(GUEST(GA_LIVE_SAVE) + 0x5563);
@@ -661,9 +673,11 @@ extern "C" void touch_draw(ImDrawList *dl, float w, float h, ImFont *font) {
             dl->AddText(font, hs, q, IM_COL32(255, 255, 255, 255), hn);
         }
     }
-    if (ctx == X_TITLE && !g_editing) {  // what a tap does
+    if (ctx == X_TITLE && !g_editing && g_title_step < 2) {  // what a tap does (past the file select: the game's own)
         const char *t = g_title_step == 1 ? T("Tap a file to play") : T("Tap to start");
-        label_text(dl, font, 40 * th, ImVec2(w * 0.5f, h - 40 * th), t, IM_COL32(255, 255, 255, 255), true);
+        // (the title screen: between its "Press L + R" and the copyright line at the bottom, which it covered)
+        float ty = g_title_step == 1 ? h - 40 * th : h * 0.835f;
+        label_text(dl, font, 40 * th, ImVec2(w * 0.5f, ty), t, IM_COL32(255, 255, 255, 255), true);
     }
     if ((want & 1) && (g_editing || !hidden(C_STICK))) {
         const Control &s = g_ctl[C_STICK];

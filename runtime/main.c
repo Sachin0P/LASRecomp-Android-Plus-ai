@@ -2,6 +2,8 @@
 #include <SDL3/SDL.h>
 #ifdef __ANDROID__
 #include <SDL3/SDL_main.h>  // (main() becomes the SDL_main the Java activity calls)
+#include <sys/stat.h>
+#include "platform/android.h"
 #endif
 #include <stdbool.h>
 #include <stdlib.h>
@@ -204,7 +206,12 @@ int main(int argc, char **argv) {
     setvbuf(stderr, NULL, _IOLBF, 0);
 #endif
     const char *root = "extracted";  // (in the data root)
-    bool skip_launcher = getenv("LARECOMP_NO_LAUNCHER") || getenv("LARECOMP_INPUT");  // tests boot straight in
+    // LARECOMP_NO_LAUNCHER=1 (tools/game_slot.sh sets it for every test run): never the start screen - it can
+    // delete game files, and a test's extracted/ may be a link to someone else's. Where it would come up (a forced
+    // start screen, "Title screen" in game) the app exits instead. =0: off (start screen tests, scratch data root).
+    const char *nl = getenv("LARECOMP_NO_LAUNCHER");
+    bool no_launcher = nl && *nl && strcmp(nl, "0");
+    bool skip_launcher = no_launcher || getenv("LARECOMP_INPUT");  // tests boot straight in
     if (getenv("LARECOMP_FORCE_LAUNCHER")) skip_launcher = false;  // (test: the start screen, then the scripted input)
     static char arg_root[4096];  // (realpath: PATH_MAX)
     for (int i = 1; i < argc; i++) {
@@ -225,8 +232,23 @@ int main(int argc, char **argv) {
         return 1;
     }
     if (getenv("LARECOMP_NO_LAUNCHER") || getenv("LARECOMP_INPUT")) skip_launcher = true;
+    {   // the game files on a memory card (the start screen's Storage row): <card's data folder>/extracted
+        static char sd_root[1100];
+        const char *g = android_game_storage_root();
+        if (g && *g) {
+            rt_paths_set_game_root(g);
+            snprintf(sd_root, sizeof sd_root, "%s/extracted", g);
+            mkdir(sd_root, 0755);
+            root = sd_root;
+            LOG("[paths] game files on the memory card: %s\n", sd_root);
+        }
+    }
 #endif
     for (bool title = !skip_launcher;;) {
+        if (title && no_launcher) {
+            fprintf(stderr, "[main] LARECOMP_NO_LAUNCHER is set: not showing the start screen - exiting\n");
+            exit(3);
+        }
         if (title) {  // start screen (runtime/ui/launcher.mm): game files setup, seed choice, settings
             extern void launcher_run(const char *root);
             launcher_run(root);

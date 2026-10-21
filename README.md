@@ -36,10 +36,6 @@ the phone itself from your own game package.
 > Like the original project, this port was made almost entirely with AI (Anthropic's Claude, through Claude Code),
 > directed, tested and reviewed by a human. You run the code at your own discretion.
 
-## Download
-
-Get the latest APK from the **[Releases page](https://github.com/Nycolazs/LASRecomp-Android-Plus/releases/latest)**.
-
 ## How it runs - Galaxy S20 FE (Snapdragon 865)
 
 Developed and tested on a **Samsung Galaxy S20 FE** (Snapdragon 865, Adreno 650, 6 GB RAM, Android 16 custom ROM)
@@ -97,8 +93,8 @@ blur removal, cheats, the warp menu, the save editor and more.
 
 ## Installing
 
-1. Download the APK from the [Releases page](https://github.com/Nycolazs/LASRecomp-Android-Plus/releases/latest) and install it
-   (allow installing from your browser / file manager when Android asks).
+1. Build the APK (see [Building from source](#building-from-source)) and install it (allow installing from your file
+   manager when Android asks). This fork doesn't publish APKs.
 2. Copy your game package (`.xci` or `.nsp`) and your `prod.keys` into one folder on the phone, for example
    `Download/LAS`.
 3. Open the app: **Game files folder** -> pick that folder -> **Set up game files**. Keep the app open for the first
